@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>App Madre - Control de Inventario</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<style>
+:root{--bg:#06060c;--s1:#0d0d16;--s2:#14141f;--s3:#1c1c2a;--s4:#252535;--bd:#2e2e42;--tx:#e6e6f2;--tx2:#8a8aa6;--ac:#00e8a2;--ac2:#00c488;--acg:rgba(0,232,162,.12);--dn:#ff5252;--wn:#ffca28;--bl:#448aff;--pp:#b388ff;--rd:10px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;overflow-x:hidden}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--s1)}::-webkit-scrollbar-thumb{background:var(--s4);border-radius:3px}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:230px;background:var(--s1);border-right:1px solid var(--bd);display:flex;flex-direction:column;z-index:100}
+.logo{padding:22px 20px 18px;border-bottom:1px solid var(--bd)}
+.logo h1{font-size:17px;font-weight:700;color:var(--ac);letter-spacing:-.5px}
+.logo p{font-size:11px;color:var(--tx2);margin-top:2px}
+.nav{flex:1;padding:10px 0;overflow-y:auto}
+.nav-item{padding:11px 20px;cursor:pointer;font-size:13px;color:var(--tx2);display:flex;align-items:center;gap:10px;border-left:3px solid transparent;transition:.15s}
+.nav-item:hover{background:var(--s2);color:var(--tx)}
+.nav-item.active{background:var(--acg);color:var(--ac);border-left-color:var(--ac);font-weight:600}
+.nav-icon{font-size:16px;width:22px;text-align:center}
+.nav-sep{height:1px;background:var(--bd);margin:8px 20px}
+.sidebar-ft{padding:14px 20px;border-top:1px solid var(--bd);font-size:11px;color:var(--tx2)}
+.main{margin-left:230px;padding:28px 32px;min-height:100vh}
+.page{display:none}.page.active{display:block}
+.pg-title{font-size:24px;font-weight:700;letter-spacing:-.5px;margin-bottom:4px}
+.pg-sub{color:var(--tx2);font-size:13px;margin-bottom:24px}
+.card{background:var(--s1);border:1px solid var(--bd);border-radius:var(--rd);padding:22px;margin-bottom:18px}
+.card-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px}
+.card-tt{font-size:15px;font-weight:600}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-green{background:rgba(0,232,162,.15);color:var(--ac)}
+.badge-yellow{background:rgba(255,202,40,.15);color:var(--wn)}
+.badge-red{background:rgba(255,82,82,.15);color:var(--dn)}
+.badge-blue{background:rgba(68,138,255,.15);color:var(--bl)}
+.btn{padding:9px 18px;border:none;border-radius:8px;font-family:'DM Sans';font-size:12px;font-weight:600;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:5px}
+.btn-p{background:var(--ac);color:#060c0a}.btn-p:hover{background:var(--ac2);transform:translateY(-1px)}
+.btn-s{background:var(--s3);color:var(--tx);border:1px solid var(--bd)}.btn-s:hover{background:var(--s4)}
+.btn-d{background:var(--dn);color:#fff}.btn-d:hover{opacity:.85}
+.btn-sm{padding:5px 12px;font-size:11px}
+.fg{margin-bottom:14px}
+.fl{display:block;font-size:11px;font-weight:600;color:var(--tx2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
+.fi,.fsel{width:100%;padding:9px 12px;background:var(--s2);border:1px solid var(--bd);border-radius:8px;color:var(--tx);font-family:'DM Sans';font-size:13px;transition:.15s}
+.fi:focus,.fsel:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3px var(--acg)}
+.fsel{cursor:pointer}.fsel option{background:var(--s2)}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:9px 12px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--tx2);border-bottom:1px solid var(--bd);font-weight:600}
+td{padding:10px 12px;border-bottom:1px solid var(--bd)}
+tr:hover td{background:var(--s2)}
+.actions{display:flex;gap:4px}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+.stat{background:var(--s1);border:1px solid var(--bd);border-radius:var(--rd);padding:18px}
+.stat-label{font-size:11px;color:var(--tx2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.stat-value{font-size:22px;font-weight:700;font-family:'JetBrains Mono'}
+.stat-value.green{color:var(--ac)}.stat-value.red{color:var(--dn)}.stat-value.blue{color:var(--bl)}.stat-value.yellow{color:var(--wn)}
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.65);z-index:200;justify-content:center;align-items:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:28px;width:500px;max-width:90vw;max-height:85vh;overflow-y:auto}
+.modal-title{font-size:18px;font-weight:700;margin-bottom:18px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
+.empty{text-align:center;padding:40px;color:var(--tx2)}
+.empty-icon{font-size:40px;margin-bottom:10px}
+.toast{position:fixed;top:20px;right:20px;padding:12px 20px;background:var(--s3);border:1px solid var(--ac);border-radius:8px;color:var(--ac);font-size:13px;font-weight:500;z-index:300;transform:translateX(120%);transition:.3s}
+.toast.show{transform:translateX(0)}.toast.error{border-color:var(--dn);color:var(--dn)}
+.resumen-box{background:var(--s2);border:1px solid var(--bd);border-radius:var(--rd);padding:18px;margin-bottom:14px}
+.resumen-row{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid var(--bd);flex-wrap:wrap;gap:4px}
+.resumen-row:last-child{border:none}
+.resumen-total{font-weight:700;color:var(--ac);font-size:16px;padding-top:10px;border-top:2px solid var(--ac)}
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <div class="logo"><h1>📦 App Madre</h1><p>Control de Inventario</p></div>
+  <div class="nav">
+    <div class="nav-item active" data-page="dashboard" onclick="showPage('dashboard')"><span class="nav-icon">📊</span>Dashboard</div>
+    <div class="nav-sep"></div>
+    <div class="nav-item" data-page="negocios" onclick="showPage('negocios')"><span class="nav-icon">🏪</span>Negocios</div>
+    <div class="nav-item" data-page="productos" onclick="showPage('productos')"><span class="nav-icon">📦</span>Productos / Costos</div>
+    <div class="nav-item" data-page="inventario" onclick="showPage('inventario')"><span class="nav-icon">📋</span>Inventario</div>
+    <div class="nav-sep"></div>
+    <div class="nav-item" data-page="ciclos" onclick="showPage('ciclos')"><span class="nav-icon">🔄</span>Ciclos / Cortes</div>
+    <div class="nav-item" data-page="pendientes" onclick="showPage('pendientes')"><span class="nav-icon">⏳</span>Pendientes</div>
+    <div class="nav-item" data-page="historial" onclick="showPage('historial')"><span class="nav-icon">📜</span>Historial</div>
+    <div class="nav-sep"></div>
+    <div class="nav-item" data-page="empleados" onclick="showPage('empleados')"><span class="nav-icon">👥</span>Empleados</div>
+    <div class="nav-item" data-page="config" onclick="showPage('config')"><span class="nav-icon">⚙️</span>Configuración</div>
+  </div>
+  <div class="sidebar-ft" id="conn-status">v1.0 — Sin conectar</div>
+</div>
+<div id="toast" class="toast"></div>
+<div class="main">
+
+<div id="page-config" class="page active">
+  <h1 class="pg-title">⚙️ Configuración de Firebase</h1>
+  <p class="pg-sub">Ingresa tus credenciales de Firebase para conectar</p>
+  <div class="card" style="max-width:600px">
+    <div class="fg"><label class="fl">API Key</label><input class="fi" id="cfg-apiKey" placeholder="AIzaSy..."/></div>
+    <div class="fg"><label class="fl">Auth Domain</label><input class="fi" id="cfg-authDomain" placeholder="tu-proyecto.firebaseapp.com"/></div>
+    <div class="fg"><label class="fl">Project ID</label><input class="fi" id="cfg-projectId" placeholder="tu-proyecto"/></div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-p" onclick="saveConfig()">💾 Guardar y Conectar</button>
+      <button class="btn btn-s" onclick="testConn()">🔌 Probar</button>
+    </div>
+    <p id="cfg-status" style="margin-top:12px;font-size:12px;color:var(--tx2)"></p>
+  </div>
+  <div class="card" style="max-width:600px">
+    <div class="card-tt" style="margin-bottom:12px">📋 Instrucciones</div>
+    <ol style="font-size:13px;color:var(--tx2);line-height:2;padding-left:18px">
+      <li>Ve a <strong style="color:var(--ac)">console.firebase.google.com</strong></li>
+      <li>Crea un nuevo proyecto</li>
+      <li>Ve a <strong>Firestore Database</strong> → Crear base de datos → <strong>Modo de prueba</strong></li>
+      <li>Ve a ⚙️ <strong>Configuración del proyecto</strong> → General</li>
+      <li>En "Tus apps", haz clic en <strong>&lt;/&gt;</strong> (Web) y registra la app</li>
+      <li>Copia: <strong>apiKey</strong>, <strong>authDomain</strong> y <strong>projectId</strong></li>
+      <li>Pégalos arriba y haz clic en "Guardar y Conectar"</li>
+    </ol>
+  </div>
+</div>
+
+<div id="page-dashboard" class="page">
+  <h1 class="pg-title">📊 Dashboard</h1><p class="pg-sub">Vista general del sistema</p>
+  <div class="stat-grid" id="dash-stats"></div>
+  <div class="card"><div class="card-hd"><span class="card-tt">Últimos Cortes</span></div>
+    <div class="tw"><table><thead><tr><th>Fecha</th><th>Negocio</th><th>Empleado</th><th>Total</th><th>Estado</th></tr></thead><tbody id="dash-cortes"></tbody></table></div>
+  </div>
+</div>
+
+<div id="page-negocios" class="page">
+  <h1 class="pg-title">🏪 Negocios</h1><p class="pg-sub">Administra tus negocios</p>
+  <div class="card"><div class="card-hd"><span class="card-tt">Lista de Negocios</span><button class="btn btn-p btn-sm" onclick="openModal('negocio')">+ Nuevo</button></div>
+    <div class="tw"><table><thead><tr><th>Nombre</th><th>Dirección</th><th>Fecha</th><th>Acciones</th></tr></thead><tbody id="tbl-negocios"></tbody></table></div>
+  </div>
+</div>
+
+<div id="page-productos" class="page">
+  <h1 class="pg-title">📦 Productos y Costos</h1><p class="pg-sub">Precios de compra, venta y % de ganancia</p>
+  <div class="card"><div class="card-hd"><span class="card-tt">Catálogo</span><button class="btn btn-p btn-sm" onclick="openModal('producto')">+ Nuevo</button></div>
+    <div class="tw"><table><thead><tr><th>Producto</th><th>Compra/kg</th><th>Venta/kg</th><th>% Ganancia</th><th>Acciones</th></tr></thead><tbody id="tbl-productos"></tbody></table></div>
+  </div>
+</div>
+
+<div id="page-inventario" class="page">
+  <h1 class="pg-title">📋 Inventario</h1><p class="pg-sub">Inventario por negocio</p>
+  <div class="card" style="margin-bottom:18px"><div class="fr">
+    <div class="fg"><label class="fl">Negocio</label><select class="fsel" id="inv-negocio" onchange="loadInventario()"></select></div>
+    <div style="display:flex;align-items:flex-end;gap:8px"><button class="btn btn-p btn-sm" onclick="openModal('inv-add')">+ Agregar Producto</button></div>
+  </div></div>
+  <div id="inv-stats" class="stat-grid" style="grid-template-columns:repeat(3,1fr)"></div>
+  <div class="card"><div class="card-hd"><span class="card-tt">Productos</span></div>
+    <div class="tw"><table><thead><tr><th>Producto</th><th>Kg Actuales</th><th>Precio/kg</th><th>Total</th><th>Acciones</th></tr></thead><tbody id="tbl-inventario"></tbody></table></div>
+  </div>
+</div>
+
+<div id="page-ciclos" class="page">
+  <h1 class="pg-title">🔄 Ciclos</h1><p class="pg-sub">Autoriza ciclos de captura</p>
+  <div class="card" style="margin-bottom:18px"><div class="fr">
+    <div class="fg"><label class="fl">Negocio</label><select class="fsel" id="ciclo-negocio" onchange="loadCiclos()"></select></div>
+    <div style="display:flex;align-items:flex-end;gap:8px"><button class="btn btn-p btn-sm" onclick="autorizarCiclo()">🔓 Autorizar Ciclo</button></div>
+  </div></div>
+  <div class="card"><div class="card-hd"><span class="card-tt">Ciclos</span></div>
+    <div class="tw"><table><thead><tr><th>Fecha</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="tbl-ciclos"></tbody></table></div>
+  </div>
+</div>
+
+<div id="page-pendientes" class="page">
+  <h1 class="pg-title">⏳ Pendientes</h1><p class="pg-sub">Cortes esperando tu aprobación</p>
+  <div id="pendientes-list"></div>
+  <div id="pendientes-empty" class="empty" style="display:none"><div class="empty-icon">✅</div><p>No hay cortes pendientes</p></div>
+</div>
+
+<div id="page-historial" class="page">
+  <h1 class="pg-title">📜 Historial</h1><p class="pg-sub">Todos los cortes aprobados</p>
+  <div class="card" style="margin-bottom:18px"><div class="fr">
+    <div class="fg"><label class="fl">Negocio</label><select class="fsel" id="hist-negocio" onchange="loadHistorial()"><option value="">Todos</option></select></div>
+    <div class="fg"><label class="fl">Fecha</label><input class="fi" type="date" id="hist-fecha" onchange="loadHistorial()"/></div>
+  </div></div>
+  <div id="historial-list"></div>
+</div>
+
+<div id="page-empleados" class="page">
+  <h1 class="pg-title">👥 Empleados</h1><p class="pg-sub">Usuarios para la App Hija</p>
+  <div class="card"><div class="card-hd"><span class="card-tt">Empleados</span><button class="btn btn-p btn-sm" onclick="openModal('empleado')">+ Nuevo</button></div>
+    <div class="tw"><table><thead><tr><th>Nombre</th><th>Usuario</th><th>Contraseña</th><th>Negocio</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="tbl-empleados"></tbody></table></div>
+  </div>
+</div>
+
+</div>
+<div id="modal-overlay" class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal" id="modal-content"></div></div>
+
+<script>
+let db=null,_negocios=[],_productos=[];
+function getCfg(){try{return JSON.parse(localStorage.getItem('fb_cfg'))||{};}catch(e){return{};}}
+function fmt(n){return new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN'}).format(n||0);}
+function fmtKg(n){return(n||0).toFixed(3)+' kg';}
+function fmtPct(n){return(n||0).toFixed(1)+'%';}
+function fmtDate(d){if(!d)return'—';const dt=d.toDate?d.toDate():new Date(d);return dt.toLocaleDateString('es-MX',{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});}
+function toast(m,e=false){const t=document.getElementById('toast');t.textContent=m;t.className='toast show'+(e?' error':'');setTimeout(()=>t.className='toast',3000);}
+
+function initFB(){
+  const c=getCfg();
+  if(c.apiKey&&c.projectId){
+    if(!firebase.apps.length)firebase.initializeApp({apiKey:c.apiKey,authDomain:c.authDomain||'',projectId:c.projectId});
+    db=firebase.firestore();
+    document.getElementById('cfg-apiKey').value=c.apiKey;
+    document.getElementById('cfg-authDomain').value=c.authDomain||'';
+    document.getElementById('cfg-projectId').value=c.projectId;
+    document.getElementById('conn-status').innerHTML='v1.0 — Conectado ✅';
+    document.getElementById('conn-status').style.color='var(--ac)';
+    return true;
+  }
+  return false;
+}
+
+function saveConfig(){
+  const c={apiKey:document.getElementById('cfg-apiKey').value.trim(),authDomain:document.getElementById('cfg-authDomain').value.trim(),projectId:document.getElementById('cfg-projectId').value.trim()};
+  if(!c.apiKey||!c.projectId)return toast('Ingresa API Key y Project ID',true);
+  localStorage.setItem('fb_cfg',JSON.stringify(c));
+  location.reload();
+}
+
+async function testConn(){
+  const s=document.getElementById('cfg-status');
+  if(!db)return s.innerHTML='<span style="color:var(--dn)">❌ No configurado</span>';
+  s.innerHTML='⏳ Probando...';
+  try{await db.collection('_test').limit(1).get();s.innerHTML='<span style="color:var(--ac)">✅ Conectado a Firebase</span>';toast('Conexión exitosa');setTimeout(()=>showPage('dashboard'),600);}
+  catch(e){s.innerHTML=`<span style="color:var(--dn)">❌ ${e.message}</span>`;}
+}
+
+function showPage(p){
+  if(!db&&p!=='config'){if(!initFB()){showPage('config');return;}}
+  document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  const el=document.getElementById('page-'+p);if(el)el.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>{if(n.dataset.page===p)n.classList.add('active');});
+  loadPage(p);
+}
+
+async function loadPage(p){
+  if(p==='dashboard')loadDash();
+  else if(p==='negocios')loadNegocios();
+  else if(p==='productos')loadProductos();
+  else if(p==='inventario'){await loadSelects();loadInventario();}
+  else if(p==='ciclos'){await loadSelects();loadCiclos();}
+  else if(p==='pendientes')loadPendientes();
+  else if(p==='historial'){await loadSelects();loadHistorial();}
+  else if(p==='empleados')loadEmpleados();
+}
+
+async function loadSelects(){
+  const s=await db.collection('negocios').orderBy('nombre').get();
+  _negocios=s.docs.map(d=>({id:d.id,...d.data()}));
+  ['inv-negocio','ciclo-negocio','hist-negocio'].forEach(id=>{
+    const el=document.getElementById(id);if(!el)return;const v=el.value;
+    el.innerHTML=(id==='hist-negocio'?'<option value="">Todos</option>':'')+_negocios.map(n=>`<option value="${n.id}">${n.nombre}</option>`).join('');
+    if(v)el.value=v;
+  });
+}
+
+// DASHBOARD
+async function loadDash(){
+  const[ns,ps,es,cs,pend]=await Promise.all([db.collection('negocios').get(),db.collection('productos').get(),db.collection('empleados').get(),db.collection('cortes').orderBy('fecha','desc').limit(10).get(),db.collection('cortes').where('aprobado','==',false).get()]);
+  document.getElementById('dash-stats').innerHTML=`<div class="stat"><div class="stat-label">Negocios</div><div class="stat-value blue">${ns.size}</div></div><div class="stat"><div class="stat-label">Productos</div><div class="stat-value green">${ps.size}</div></div><div class="stat"><div class="stat-label">Empleados</div><div class="stat-value">${es.size}</div></div><div class="stat"><div class="stat-label">Pendientes</div><div class="stat-value yellow">${pend.size}</div></div>`;
+  document.getElementById('dash-cortes').innerHTML=cs.docs.map(d=>{const c=d.data();return`<tr><td>${fmtDate(c.fecha)}</td><td>${c.negocio_nombre||'—'}</td><td>${c.empleado_nombre||'—'}</td><td style="font-family:'JetBrains Mono';font-weight:600;color:var(--ac)">${fmt(c.total_entregar)}</td><td>${c.aprobado?'<span class="badge badge-green">Aprobado</span>':'<span class="badge badge-yellow">Pendiente</span>'}</td></tr>`;}).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--tx2)">Sin cortes aún</td></tr>';
+}
+
+// NEGOCIOS
+async function loadNegocios(){
+  const s=await db.collection('negocios').orderBy('nombre').get();
+  document.getElementById('tbl-negocios').innerHTML=s.docs.map(d=>{const n=d.data();return`<tr><td style="font-weight:600">${n.nombre}</td><td>${n.direccion||'—'}</td><td>${fmtDate(n.created_at)}</td><td class="actions"><button class="btn btn-s btn-sm" onclick="editDoc('negocios','${d.id}','negocio')">✏️</button><button class="btn btn-d btn-sm" onclick="delNeg('${d.id}')">🗑️</button></td></tr>`;}).join('')||'<tr><td colspan="4" class="empty">No hay negocios</td></tr>';
+}
+async function saveNeg(){
+  const id=document.getElementById('neg-id').value,o={nombre:document.getElementById('neg-nombre').value.trim(),direccion:document.getElementById('neg-direccion').value.trim(),notas:document.getElementById('neg-notas').value.trim()};
+  if(!o.nombre)return toast('Nombre obligatorio',true);
+  if(id)await db.collection('negocios').doc(id).update(o);
+  else{o.created_at=firebase.firestore.FieldValue.serverTimestamp();await db.collection('negocios').add(o);}
+  toast(id?'Actualizado':'Creado');closeModal();loadNegocios();
+}
+async function delNeg(id){if(!confirm('¿Eliminar negocio?'))return;const inv=await db.collection('inventario').where('negocio_id','==',id).get();const b=db.batch();inv.forEach(d=>b.delete(d.ref));b.delete(db.collection('negocios').doc(id));await b.commit();toast('Eliminado');loadNegocios();}
+
+// PRODUCTOS
+async function loadProductos(){
+  const s=await db.collection('productos').orderBy('nombre').get();
+  _productos=s.docs.map(d=>({id:d.id,...d.data()}));
+  document.getElementById('tbl-productos').innerHTML=_productos.map(p=>`<tr><td style="font-weight:600">${p.nombre}</td><td style="font-family:'JetBrains Mono'">${fmt(p.precio_compra)}</td><td style="font-family:'JetBrains Mono'">${fmt(p.precio_venta)}</td><td style="font-family:'JetBrains Mono';color:${p.porcentaje_ganancia>0?'var(--ac)':'var(--dn)'}">${fmtPct(p.porcentaje_ganancia)}</td><td class="actions"><button class="btn btn-s btn-sm" onclick="editDoc('productos','${p.id}','producto')">✏️</button><button class="btn btn-d btn-sm" onclick="delDoc('productos','${p.id}')">🗑️</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty">No hay productos</td></tr>';
+}
+async function saveProd(){
+  const id=document.getElementById('prod-id').value,c=parseFloat(document.getElementById('prod-compra').value)||0,v=parseFloat(document.getElementById('prod-venta').value)||0;
+  const o={nombre:document.getElementById('prod-nombre').value.trim(),precio_compra:c,precio_venta:v,porcentaje_ganancia:c>0?((v-c)/c*100):0};
+  if(!o.nombre)return toast('Nombre obligatorio',true);
+  if(id)await db.collection('productos').doc(id).update(o);
+  else{o.created_at=firebase.firestore.FieldValue.serverTimestamp();await db.collection('productos').add(o);}
+  toast(id?'Actualizado':'Creado');closeModal();loadProductos();
+}
+function calcGan(){const c=parseFloat(document.getElementById('prod-compra').value)||0,v=parseFloat(document.getElementById('prod-venta').value)||0,g=c>0?((v-c)/c*100):0;const el=document.getElementById('prod-gan-prev');if(el){el.textContent=fmtPct(g);el.style.color=g>0?'var(--ac)':'var(--dn)';}}
+
+// INVENTARIO
+async function loadInventario(){
+  const nid=document.getElementById('inv-negocio').value;if(!nid)return;
+  const s=await db.collection('inventario').where('negocio_id','==',nid).where('activo','==',true).get();
+  const items=s.docs.map(d=>({id:d.id,...d.data()}));
+  let tk=0,td=0;items.forEach(i=>{tk+=i.kg_actuales||0;td+=i.total||0;});
+  document.getElementById('inv-stats').innerHTML=`<div class="stat"><div class="stat-label">Productos</div><div class="stat-value blue">${items.length}</div></div><div class="stat"><div class="stat-label">Total Kg</div><div class="stat-value">${tk.toFixed(3)}</div></div><div class="stat"><div class="stat-label">Valor Total</div><div class="stat-value green">${fmt(td)}</div></div>`;
+  document.getElementById('tbl-inventario').innerHTML=items.map(i=>`<tr><td style="font-weight:600">${i.producto_nombre||'?'}</td><td style="font-family:'JetBrains Mono'">${fmtKg(i.kg_actuales)}</td><td style="font-family:'JetBrains Mono'">${fmt(i.precio_kg)}</td><td style="font-family:'JetBrains Mono';font-weight:600;color:var(--ac)">${fmt(i.total)}</td><td class="actions"><button class="btn btn-s btn-sm" onclick="editDoc('inventario','${i.id}','inv-edit')">✏️</button><button class="btn btn-d btn-sm" onclick="removeInv('${i.id}')">🗑️</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty">Sin productos</td></tr>';
+}
+async function saveInvItem(){
+  const nid=document.getElementById('inv-negocio').value,pid=document.getElementById('inv-prod-sel').value,pn=document.getElementById('inv-prod-sel').selectedOptions[0]?.textContent||'',kg=parseFloat(document.getElementById('inv-kg2').value)||0,pr=parseFloat(document.getElementById('inv-pr2').value)||0;
+  if(!pid||!nid)return toast('Selecciona producto',true);
+  const ex=await db.collection('inventario').where('negocio_id','==',nid).where('producto_id','==',pid).where('activo','==',true).get();
+  if(!ex.empty)return toast('Ya existe en inventario',true);
+  await db.collection('inventario').add({negocio_id:nid,producto_id:pid,producto_nombre:pn,kg_actuales:kg,precio_kg:pr,total:kg*pr,activo:true,created_at:firebase.firestore.FieldValue.serverTimestamp()});
+  toast('Agregado');closeModal();loadInventario();
+}
+async function updateInv(){
+  const id=document.getElementById('inve-id').value,kg=parseFloat(document.getElementById('inve-kg').value)||0,pr=parseFloat(document.getElementById('inve-pr').value)||0;
+  await db.collection('inventario').doc(id).update({kg_actuales:kg,precio_kg:pr,total:kg*pr});
+  toast('Actualizado');closeModal();loadInventario();
+}
+async function removeInv(id){if(!confirm('¿Quitar del inventario?'))return;await db.collection('inventario').doc(id).update({activo:false});toast('Removido');loadInventario();}
+
+// CICLOS
+async function loadCiclos(){
+  const nid=document.getElementById('ciclo-negocio').value;if(!nid)return;
+  const s=await db.collection('ciclos').where('negocio_id','==',nid).orderBy('created_at','desc').get();
+  const badges={autorizado:'badge-green',enviado:'badge-yellow',aprobado:'badge-blue',rechazado:'badge-red'},labels={autorizado:'🔓 Autorizado',enviado:'📨 Enviado',aprobado:'✅ Aprobado',rechazado:'❌ Rechazado'};
+  document.getElementById('tbl-ciclos').innerHTML=s.docs.map(d=>{const c=d.data();return`<tr><td>${fmtDate(c.created_at)}</td><td><span class="badge ${badges[c.estado]||''}">${labels[c.estado]||c.estado}</span></td><td class="actions">${c.estado==='autorizado'?`<button class="btn btn-d btn-sm" onclick="delDoc('ciclos','${d.id}');setTimeout(loadCiclos,500)">Cancelar</button>`:''}</td></tr>`;}).join('')||'<tr><td colspan="3" class="empty">Sin ciclos</td></tr>';
+}
+async function autorizarCiclo(){
+  const nid=document.getElementById('ciclo-negocio').value;if(!nid)return toast('Selecciona negocio',true);
+  const ex=await db.collection('ciclos').where('negocio_id','==',nid).where('estado','==','autorizado').get();
+  if(!ex.empty)return toast('Ya hay un ciclo autorizado',true);
+  const exE=await db.collection('ciclos').where('negocio_id','==',nid).where('estado','==','enviado').get();
+  if(!exE.empty)return toast('Hay corte pendiente. Apruébalo primero.',true);
+  await db.collection('ciclos').add({negocio_id:nid,estado:'autorizado',created_at:firebase.firestore.FieldValue.serverTimestamp()});
+  toast('Ciclo autorizado');loadCiclos();
+}
+
+// PENDIENTES
+async function loadPendientes(){
+  const s=await db.collection('cortes').where('aprobado','==',false).orderBy('fecha','desc').get();
+  if(s.empty){document.getElementById('pendientes-list').innerHTML='';document.getElementById('pendientes-empty').style.display='block';return;}
+  document.getElementById('pendientes-empty').style.display='none';
+  let html='';
+  for(const doc of s.docs){
+    const c={id:doc.id,...doc.data()};
+    const ds=await db.collection('corte_detalle').where('corte_id','==',c.id).get();
+    const dets=ds.docs.map(d=>d.data());let te=0,dh='';
+    for(const d of dets){
+      te+=d.dinero_entregar||0;
+      dh+=`<div class="resumen-row"><span><strong>${d.producto_nombre}</strong></span><span>Había:${fmtKg(d.kg_antes)} → Vendió:${fmtKg(d.kg_vendidos)} → Quedan:${fmtKg(d.kg_despues)}</span></div><div class="resumen-row"><span style="color:var(--tx2);font-size:12px;padding-left:12px">💰 ${fmt(d.dinero_antes)} → ${fmt(d.dinero_despues)}</span><span style="color:var(--ac);font-weight:600">Entregar: ${fmt(d.dinero_entregar)}</span></div>`;
+    }
+    html+=`<div class="card"><div class="card-hd"><div><span class="card-tt">${c.negocio_nombre||'—'}</span> <span class="badge badge-yellow">Pendiente</span></div><span style="color:var(--tx2);font-size:12px">${fmtDate(c.fecha)}</span></div><p style="font-size:13px;color:var(--tx2);margin-bottom:12px">Empleado: <strong style="color:var(--tx)">${c.empleado_nombre}</strong></p><div class="resumen-box">${dh}<div class="resumen-row resumen-total"><span>TOTAL A ENTREGAR</span><span>${fmt(te)}</span></div></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-d btn-sm" onclick="rechazarCorte('${c.id}','${c.ciclo_id||''}')">❌ Rechazar</button><button class="btn btn-p" onclick="aprobarCorte('${c.id}')">✅ Aprobar</button></div></div>`;
+  }
+  document.getElementById('pendientes-list').innerHTML=html;
+}
+
+async function aprobarCorte(cid){
+  if(!confirm('¿Aprobar? Se actualizará el inventario.'))return;
+  const cd=await db.collection('cortes').doc(cid).get();const c=cd.data();
+  const ds=await db.collection('corte_detalle').where('corte_id','==',cid).get();
+  let te=0;
+  for(const dd of ds.docs){
+    const d=dd.data();te+=d.dinero_entregar||0;
+    const inv=await db.collection('inventario').where('negocio_id','==',c.negocio_id).where('producto_id','==',d.producto_id).where('activo','==',true).get();
+    if(!inv.empty)await inv.docs[0].ref.update({kg_actuales:d.kg_despues,total:d.kg_despues*d.precio_kg});
+  }
+  await db.collection('cortes').doc(cid).update({aprobado:true,total_entregar:te});
+  if(c.ciclo_id)await db.collection('ciclos').doc(c.ciclo_id).update({estado:'aprobado'});
+  toast('✅ Aprobado — Inventario actualizado');loadPendientes();
+}
+
+async function rechazarCorte(cid,cicloId){
+  if(!confirm('¿Rechazar corte?'))return;
+  const ds=await db.collection('corte_detalle').where('corte_id','==',cid).get();
+  const b=db.batch();ds.forEach(d=>b.delete(d.ref));b.delete(db.collection('cortes').doc(cid));await b.commit();
+  if(cicloId)await db.collection('ciclos').doc(cicloId).update({estado:'autorizado'});
+  toast('Rechazado — Ciclo reabierto');loadPendientes();
+}
+
+// HISTORIAL
+async function loadHistorial(){
+  let q=db.collection('cortes').where('aprobado','==',true).orderBy('fecha','desc').limit(50);
+  const nid=document.getElementById('hist-negocio')?.value;
+  if(nid)q=db.collection('cortes').where('aprobado','==',true).where('negocio_id','==',nid).orderBy('fecha','desc').limit(50);
+  const s=await q.get();let cortes=s.docs.map(d=>({id:d.id,...d.data()}));
+  const ff=document.getElementById('hist-fecha')?.value;
+  if(ff)cortes=cortes.filter(c=>{const dt=c.fecha?.toDate?c.fecha.toDate():new Date(c.fecha);return dt.toISOString().slice(0,10)===ff;});
+  if(!cortes.length){document.getElementById('historial-list').innerHTML='<div class="empty"><div class="empty-icon">📜</div><p>Sin historial</p></div>';return;}
+  let html='';
+  for(const c of cortes){
+    const ds=await db.collection('corte_detalle').where('corte_id','==',c.id).get();
+    let dh='<table style="width:100%;font-size:12px"><thead><tr><th>Producto</th><th>Kg Antes</th><th>Vendidos</th><th>Quedan</th><th>$ Antes</th><th>$ Después</th><th>Entregar</th></tr></thead><tbody>',te=0;
+    ds.forEach(dd=>{const d=dd.data();te+=d.dinero_entregar||0;dh+=`<tr><td style="font-weight:600">${d.producto_nombre}</td><td>${fmtKg(d.kg_antes)}</td><td style="color:var(--wn)">${fmtKg(d.kg_vendidos)}</td><td>${fmtKg(d.kg_despues)}</td><td>${fmt(d.dinero_antes)}</td><td>${fmt(d.dinero_despues)}</td><td style="color:var(--ac);font-weight:600">${fmt(d.dinero_entregar)}</td></tr>`;});
+    dh+='</tbody></table>';
+    html+=`<div class="card"><div class="card-hd"><div><span class="card-tt">🏪 ${c.negocio_nombre||'—'}</span> <span class="badge badge-green">Aprobado</span></div><span style="color:var(--tx2);font-size:12px">${fmtDate(c.fecha)}</span></div><p style="font-size:13px;color:var(--tx2);margin-bottom:14px">Empleado: <strong style="color:var(--tx)">${c.empleado_nombre}</strong></p><div class="tw">${dh}</div><div class="resumen-row resumen-total" style="margin-top:12px"><span>TOTAL</span><span>${fmt(te)}</span></div></div>`;
+  }
+  document.getElementById('historial-list').innerHTML=html;
+}
+
+// EMPLEADOS
+async function loadEmpleados(){
+  const s=await db.collection('empleados').orderBy('nombre').get();
+  const nm={};const ns=await db.collection('negocios').get();ns.forEach(d=>nm[d.id]=d.data().nombre);
+  document.getElementById('tbl-empleados').innerHTML=s.docs.map(d=>{const e=d.data();return`<tr><td style="font-weight:600">${e.nombre}</td><td><code style="background:var(--s3);padding:2px 8px;border-radius:4px;font-size:12px">${e.usuario}</code></td><td><code style="background:var(--s3);padding:2px 8px;border-radius:4px;font-size:12px">${e.contrasena}</code></td><td>${nm[e.negocio_id]||'Sin asignar'}</td><td>${e.activo!==false?'<span class="badge badge-green">Activo</span>':'<span class="badge badge-red">Inactivo</span>'}</td><td class="actions"><button class="btn btn-s btn-sm" onclick="editDoc('empleados','${d.id}','empleado')">✏️</button><button class="btn btn-d btn-sm" onclick="delDoc('empleados','${d.id}')">🗑️</button></td></tr>`;}).join('')||'<tr><td colspan="6" class="empty">No hay empleados</td></tr>';
+}
+async function saveEmp(){
+  const id=document.getElementById('emp-id').value,o={nombre:document.getElementById('emp-nombre').value.trim(),usuario:document.getElementById('emp-usuario').value.trim(),contrasena:document.getElementById('emp-contra').value.trim(),negocio_id:document.getElementById('emp-negocio').value||null,activo:true};
+  if(!o.nombre||!o.usuario||!o.contrasena)return toast('Campos obligatorios',true);
+  if(!id){const ex=await db.collection('empleados').where('usuario','==',o.usuario).get();if(!ex.empty)return toast('Usuario duplicado',true);}
+  if(id)await db.collection('empleados').doc(id).update(o);
+  else{o.created_at=firebase.firestore.FieldValue.serverTimestamp();await db.collection('empleados').add(o);}
+  toast(id?'Actualizado':'Creado');closeModal();loadEmpleados();
+}
+
+// GENERIC HELPERS
+async function editDoc(col,id,type){const d=await db.collection(col).doc(id).get();if(d.exists)openModal(type,{id,...d.data()});}
+async function delDoc(col,id){if(!confirm('¿Eliminar?'))return;await db.collection(col).doc(id).delete();toast('Eliminado');loadPage(document.querySelector('.page.active')?.id?.replace('page-','')||'dashboard');}
+
+// MODALS
+async function openModal(type,data=null){
+  const mc=document.getElementById('modal-content');let h='';
+  if(type==='negocio'){
+    h=`<div class="modal-title">${data?'✏️ Editar':'🏪 Nuevo'} Negocio</div><input type="hidden" id="neg-id" value="${data?.id||''}"/><div class="fg"><label class="fl">Nombre</label><input class="fi" id="neg-nombre" value="${data?.nombre||''}"/></div><div class="fg"><label class="fl">Dirección</label><input class="fi" id="neg-direccion" value="${data?.direccion||''}"/></div><div class="fg"><label class="fl">Notas</label><input class="fi" id="neg-notas" value="${data?.notas||''}"/></div><div class="modal-actions"><button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="saveNeg()">💾 Guardar</button></div>`;
+  } else if(type==='producto'){
+    h=`<div class="modal-title">${data?'✏️ Editar':'📦 Nuevo'} Producto</div><input type="hidden" id="prod-id" value="${data?.id||''}"/><div class="fg"><label class="fl">Nombre</label><input class="fi" id="prod-nombre" value="${data?.nombre||''}"/></div><div class="fr"><div class="fg"><label class="fl">Compra/kg</label><input class="fi" id="prod-compra" type="number" step="0.01" value="${data?.precio_compra||''}" oninput="calcGan()"/></div><div class="fg"><label class="fl">Venta/kg</label><input class="fi" id="prod-venta" type="number" step="0.01" value="${data?.precio_venta||''}" oninput="calcGan()"/></div></div><div class="fg"><label class="fl">% Ganancia</label><div id="prod-gan-prev" style="font-family:'JetBrains Mono';font-size:20px;font-weight:700;color:var(--ac)">${data?fmtPct(data.porcentaje_ganancia):'0.0%'}</div></div><div class="modal-actions"><button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="saveProd()">💾 Guardar</button></div>`;
+  } else if(type==='empleado'){
+    let negs=_negocios;if(!negs.length){const s=await db.collection('negocios').orderBy('nombre').get();negs=s.docs.map(d=>({id:d.id,...d.data()}));}
+    h=`<div class="modal-title">${data?'✏️ Editar':'👤 Nuevo'} Empleado</div><input type="hidden" id="emp-id" value="${data?.id||''}"/><div class="fg"><label class="fl">Nombre</label><input class="fi" id="emp-nombre" value="${data?.nombre||''}"/></div><div class="fr"><div class="fg"><label class="fl">Usuario</label><input class="fi" id="emp-usuario" value="${data?.usuario||''}"/></div><div class="fg"><label class="fl">Contraseña</label><input class="fi" id="emp-contra" value="${data?.contrasena||''}"/></div></div><div class="fg"><label class="fl">Negocio</label><select class="fsel" id="emp-negocio"><option value="">Sin asignar</option>${negs.map(n=>`<option value="${n.id}"${data?.negocio_id===n.id?' selected':''}>${n.nombre}</option>`).join('')}</select></div><div class="modal-actions"><button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="saveEmp()">💾 Guardar</button></div>`;
+  } else if(type==='inv-add'){
+    let prods=_productos;if(!prods.length){const s=await db.collection('productos').orderBy('nombre').get();prods=s.docs.map(d=>({id:d.id,...d.data()}));_productos=prods;}
+    h=`<div class="modal-title">📦 Agregar al Inventario</div><div class="fg"><label class="fl">Producto</label><select class="fsel" id="inv-prod-sel" onchange="fillPr()"><option value="">Seleccionar...</option>${prods.map(p=>`<option value="${p.id}" data-pr="${p.precio_venta}" data-nm="${p.nombre}">${p.nombre}</option>`).join('')}</select></div><div class="fr"><div class="fg"><label class="fl">Kg</label><input class="fi" id="inv-kg2" type="number" step="0.001" value="0" oninput="calcTI()"/></div><div class="fg"><label class="fl">Precio/kg</label><input class="fi" id="inv-pr2" type="number" step="0.01" value="0" oninput="calcTI()"/></div></div><div class="fg"><label class="fl">Total</label><div id="inv-tot-prev" style="font-family:'JetBrains Mono';font-size:20px;font-weight:700;color:var(--ac)">$0.00</div></div><div class="modal-actions"><button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="saveInvItem()">💾 Agregar</button></div>`;
+  } else if(type==='inv-edit'){
+    h=`<div class="modal-title">✏️ ${data?.producto_nombre||'Producto'}</div><input type="hidden" id="inve-id" value="${data?.id||''}"/><div class="fr"><div class="fg"><label class="fl">Kg</label><input class="fi" id="inve-kg" type="number" step="0.001" value="${data?.kg_actuales||0}" oninput="calcTIE()"/></div><div class="fg"><label class="fl">Precio/kg</label><input class="fi" id="inve-pr" type="number" step="0.01" value="${data?.precio_kg||0}" oninput="calcTIE()"/></div></div><div class="fg"><label class="fl">Total</label><div id="inve-tot" style="font-family:'JetBrains Mono';font-size:20px;font-weight:700;color:var(--ac)">${fmt(data?.total)}</div></div><div class="modal-actions"><button class="btn btn-s" onclick="closeModal()">Cancelar</button><button class="btn btn-p" onclick="updateInv()">💾 Actualizar</button></div>`;
+  }
+  mc.innerHTML=h;document.getElementById('modal-overlay').classList.add('show');
+}
+function closeModal(){document.getElementById('modal-overlay').classList.remove('show');}
+function fillPr(){const s=document.getElementById('inv-prod-sel'),o=s.selectedOptions[0];document.getElementById('inv-pr2').value=o?.dataset?.pr||0;calcTI();}
+function calcTI(){const k=parseFloat(document.getElementById('inv-kg2').value)||0,p=parseFloat(document.getElementById('inv-pr2').value)||0;document.getElementById('inv-tot-prev').textContent=fmt(k*p);}
+function calcTIE(){const k=parseFloat(document.getElementById('inve-kg').value)||0,p=parseFloat(document.getElementById('inve-pr').value)||0;document.getElementById('inve-tot').textContent=fmt(k*p);}
+
+document.addEventListener('DOMContentLoaded',()=>{if(!initFB())showPage('config');});
+</script>
+</body>
+</html>
